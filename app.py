@@ -5,8 +5,15 @@ import numpy as np
 import speech_recognition as sr
 import os
 
+from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
+import torch
+import librosa
+
 
 app = FastAPI()
+# Load pre-trained Wav2Vec2 model
+processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
 
 
 
@@ -69,6 +76,27 @@ def analyze_audio_dynamically(audio_path):
         "pause_based_fillers": len(filler_durations),
     }
 
+
+
+
+
+def detect_phonemes(audio_path):
+    # Load and preprocess audio
+    y, sr = librosa.load(audio_path, sr=16000)
+    input_values = processor(y, sampling_rate=sr, return_tensors="pt", padding=True).input_values
+
+    # Run model inference
+    logits = model(input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+
+    # Decode to text or phonemes
+    transcription = processor.batch_decode(predicted_ids)
+    return transcription
+
+# Example usage
+# print(detect_phonemes("example.wav"))
+
+
 @app.post("/upload-audio/")
 async def upload_audio(file: UploadFile = File(...)):
     # Save the uploaded file temporarily
@@ -78,14 +106,16 @@ async def upload_audio(file: UploadFile = File(...)):
     
     # Analyze the saved audio file
     results = analyze_audio_dynamically(temp_file_path)
+    transcription = detect_phonemes(temp_file_path)
     
     # Optionally clean up the file (delete temporary file)
     # import os
     os.remove(temp_file_path)
     print(results)
-    print(type(results))    
+    print(type(results))  
+    print(transcription)  
     
-    return {"filename": file.filename, "results": results}  
+    return {"filename": file.filename, "results": results, "transcription" : transcription}  
 
 @app.get("/")
 def read_root():
