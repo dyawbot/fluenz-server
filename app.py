@@ -89,7 +89,7 @@ async def upload_audio(file: UploadFile = File(...)):
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello, FastAPI!"}
+    return {"message": "Hello, FluenZ- Version 1.1.2+6!"}
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str = None):
